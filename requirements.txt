@@ -1,3 +1,5 @@
 dotenv
 openai
 requests
+kagglehub
+numpy

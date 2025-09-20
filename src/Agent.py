@@ -6,19 +6,28 @@ from pydantic import BaseModel
 from openai import OpenAI
 from openai.types.chat import ParsedChoice
 
+
+def get_client():
+    client = OpenAI(
+        base_url="http://localhost:11434/v1",
+        api_key="ollama",  # required, but unused
+    )
+    return client
+
+
 class Action(BaseModel):
     option: int
     content: str
     explanation: str
 
+
 class BooleanAction(BaseModel):
     choice: str
     explanation: str
 
-class Agent():
 
+class Agent:
     def __init__(self, model: str, persona: dict = None):
-        
         self.persona = persona
 
         self.llm = None
@@ -33,7 +42,7 @@ class Agent():
 
     def __repr__(self):
         return f"User {self.identifier} with {self.followers} followers"
-    
+
     def __str__(self):
         return f"User {self.identifier} with {self.followers} followers"
 
@@ -42,10 +51,10 @@ class Agent():
         From a list of personas, randomly select one to use as the agent's persona.
         Not used anymore due to the persona being passed as an argument to enforce consistency.
         """
-        
-        persona_list = json.load(open(persona_path, 'r'))
+
+        persona_list = json.load(open(persona_path, "r"))
         return random.choice(persona_list)
-    
+
     def _generate_sys_msg(self) -> str:
         """
         Generate a system message to introduce the agent to the system and its persona.
@@ -56,16 +65,15 @@ class Agent():
                     Your main goal is to repost others' posts and you are also able to share your own posts.
 
                     Here is a description of your persona:
-                    {self.persona['persona']}
+                    {self.persona["persona"]}
         """
 
         return sys_msg
-    
-    def _add_bio(self):
 
+    def _add_bio(self):
         prompt = f"""Write a very short (max. 140 characters), very informal social media biography for the following persona:
         
-        {self.persona['persona']}
+        {self.persona["persona"]}
 
         You may add things that are not in the persona. Do not use emoji. Write as if you are the person described."""
 
@@ -73,13 +81,13 @@ class Agent():
             model=self.model,
             messages=[
                 {"role": "system", "content": prompt},
-            ]
+            ],
         )
 
-        self.persona['biography'] = response.choices[0].message.content
+        self.persona["biography"] = response.choices[0].message.content
 
         # print(self.persona['biography'])
-    
+
     def set_client(self, client: OpenAI):
         """
         Set the client for the agent to use for the simulation.
@@ -99,50 +107,57 @@ class Agent():
         """
         Return the agent's data in JSON format.
         """
-        
+
         result = {
             "identifier": self.identifier,
             "followers": self.followers,
             "used_tokens_input": self.used_tokens_input,
             "used_tokens_output": self.used_tokens_output,
-            "used_tokens_cached": self.used_tokens_cached
+            "used_tokens_cached": self.used_tokens_cached,
         }
 
         if include_persona:
-            result['persona'] = self.persona
+            result["persona"] = self.persona
 
         return result
-    
+
     def increase_followers(self):
         """
         Increase the number of followers by 1.
         """
         self.followers += 1
-    
-    def get_response(self, message: str, response_format = None) -> ParsedChoice:
+
+    def get_response(self, message: str, response_format=None) -> ParsedChoice:
         """
         Get the response from the agent to the given message.
         """
 
         response = self.llm.beta.chat.completions.parse(
             model=self.model,
-            messages = [
+            messages=[
                 {"role": "system", "content": self._generate_sys_msg()},
-                {"role": "user", "content": message}
+                {"role": "user", "content": message},
             ],
-            response_format=response_format
-
+            response_format=response_format,
         )
 
         # Keep track of the tokens used for cost analysis
         self.used_tokens_input += response.usage.prompt_tokens
         self.used_tokens_output += response.usage.completion_tokens
-        self.used_tokens_cached += response.usage.prompt_tokens_details.cached_tokens
-        
+        self.used_tokens_cached += (
+            0  # response.usage.prompt_tokens_details.cached_tokens
+        )
+
         return response.choices[0]
-    
-    def link_with_user(self, other_agent: 'Agent', post_content: str, other_agent_posts: list, use_bio: bool = False,
-                       use_follower_count: bool = True) -> str:
+
+    def link_with_user(
+        self,
+        other_agent: "Agent",
+        post_content: str,
+        other_agent_posts: list,
+        use_bio: bool = False,
+        use_follower_count: bool = True,
+    ) -> str:
         """
         Supply the bio of another agent and let the user decide if they want to follow them.
         """
@@ -153,28 +168,27 @@ class Agent():
 You view the profile of the poster.
 User ID: {other_agent.identifier}
 """
-        
+
         if use_follower_count:
             msg += f"Followers: {other_agent.followers}\n"
 
         if use_bio:
-            msg += f"""Bio: {other_agent.persona['biography']}
+            msg += f"""Bio: {other_agent.persona["biography"]}
 """
-        
-        msg += """\nYou also see that the user has recently posted or reposted the following messages:\n\n"""
-        
-        for post in other_agent_posts[:5]:
 
-            msg += str(post['post_content'])
+        msg += """\nYou also see that the user has recently posted or reposted the following messages:\n\n"""
+
+        for post in other_agent_posts[:5]:
+            msg += str(post["post_content"])
             msg += "\n\n"
-        
+
         msg += """Based on your beliefs, interests and personality, would you like to follow this user?
 Reply with 'yes' or 'no'. Also provide a short explanation for your choice."""
 
         response = self.get_response(msg, BooleanAction).message.parsed
 
-        return True if response.choice.lower() == 'yes' else False, response.explanation
-    
+        return True if response.choice.lower() == "yes" else False, response.explanation
+
     def perform_action(self, news_data: list, timeline: list) -> Action:
         """
         The user is presented with a set of options to choose from based on their persona.
@@ -193,15 +207,13 @@ Reply in JSON format.\n\n"""
         msg += """Here are the messages on the timeline for option 1:\n"""
 
         for post in timeline:
-
-            msg += str(post['post_content'])
+            msg += str(post["post_content"])
             msg += "\n\n"
 
         msg += """Here are the news headlines for option 2:\n"""
 
         for i, news_item in enumerate(news_data, start=1):
-
-            msg += f"""ID: {i}\nTitle: {news_item['headline']}\nCategory: {news_item['category']}\nDescription: {news_item['short_description']}\n\n"""
+            msg += f"""ID: {i}\nTitle: {news_item["headline"]}\nCategory: {news_item["category"]}\nDescription: {news_item["short_description"]}\n\n"""
 
         # Get response and handle the action
 
