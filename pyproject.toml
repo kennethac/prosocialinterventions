@@ -1,0 +1,13 @@
+[project]
+name = "prosocialinterventions"
+version = "0.1.0"
+description = "A project to improve the reproducibility of https://github.com/cssmodels/prosocialinterventions"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "dotenv>=0.9.9",
+    "kagglehub>=0.3.13",
+    "numpy>=2.3.3",
+    "openai>=1.108.1",
+    "requests>=2.32.5",
+]
