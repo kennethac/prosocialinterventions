@@ -1,3 +1,4 @@
+import os
 import json
 import random
 
@@ -8,9 +9,12 @@ from openai.types.chat import ParsedChoice
 
 
 def get_client():
+    selected_backend = os.environ["SELECTED_BACKEND"]
+    url = os.environ[f"{selected_backend}_URL"]
+    key = os.environ[f"{selected_backend}_KEY"]
     client = OpenAI(
-        base_url="http://localhost:11434/v1",
-        api_key="ollama",  # required, but unused
+        base_url=url,
+        api_key=key,  # required, but unused
     )
     return client
 
@@ -183,7 +187,7 @@ User ID: {other_agent.identifier}
             msg += "\n\n"
 
         msg += """Based on your beliefs, interests and personality, would you like to follow this user?
-Reply with 'yes' or 'no'. Also provide a short explanation for your choice."""
+Reply with 'yes' or 'no'. Also provide a short explanation for your choice. Respond with JSON that follows this exact schema { "choice": 'yes", "explanation": "some reason you choose to follow this user." } """
 
         response = self.get_response(msg, BooleanAction).message.parsed
 
@@ -202,7 +206,7 @@ Reply with 'yes' or 'no'. Also provide a short explanation for your choice."""
 2. Choose exactly one of the headlines to share on your social media feed based on your persona, and write a comment of 10-50 words about that one headline in the style of your personality. [Write only the message you want to share as content. Don't repeat the title of the headline, but introduce the topic briefly. You may choose news you agree or do not agree with and share this vision. Do not use quotation marks. Do not introduce yourself. Use informal language. You may write a positive message, but you may also use sarcasm or irony, swear, criticize, threat, lie, and engage in personal attacks. You can also bring up a related topic that the post made you think of. Do not start your message by describing your persona. Don't use hashtags.]
 3. Do nothing. [You can choose this option if you don't feel like sharing anything at the moment, or if you want to observe the platform for a while.]
 Also provide an explanation of one sentence about your choice.
-Reply in JSON format.\n\n"""
+Reply in JSON format with exactly the following properties: option (the number 1, 2 or 3 of the option you choose), content (the ID of the message ID to share if choosing choice 1, or your comment if choosing choice 2), and explanation, meaning why you chose that action.\n\n"""
 
         msg += """Here are the messages on the timeline for option 1:\n"""
 
@@ -216,7 +220,6 @@ Reply in JSON format.\n\n"""
             msg += f"""ID: {i}\nTitle: {news_item["headline"]}\nCategory: {news_item["category"]}\nDescription: {news_item["short_description"]}\n\n"""
 
         # Get response and handle the action
-
         try:
             response = self.get_response(msg, response_format=Action)
         except Exception as e:

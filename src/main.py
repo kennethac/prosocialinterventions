@@ -91,7 +91,7 @@ def run_simulation(
     selected_users = select_users(persona_path, n=simulation_size)
 
     # Set client for platform to OpenAI gpt-4o-mini
-    model = "qwen2.5:3b"
+    model = os.environ["SELECTED_MODEL"]
     client = get_client()
 
     # Register users

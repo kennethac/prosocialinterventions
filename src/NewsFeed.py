@@ -1,12 +1,15 @@
 import json
 import random
 
+datasets = {}
+
 
 class NewsFeed:
     def __init__(self, news_dataset_path: str):
-        print(f"News feed path is {news_dataset_path}")
         self.path = news_dataset_path
-        self.news_items = self.read_jsonl_file(self.path)
+        if news_dataset_path not in datasets:
+            datasets[news_dataset_path] = self.read_jsonl_file(self.path)
+        self.news_items = datasets[news_dataset_path]
 
     def read_jsonl_file(self, filepath):
         """
